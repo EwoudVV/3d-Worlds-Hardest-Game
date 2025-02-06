@@ -21,11 +21,16 @@ public class PlayerMovement : MonoBehaviour
     // Swing system variables
     [Header("Swing Settings")]
     public Transform swingCenter;
-    public float swingRadius = 5f;
+    public float activationRadius = 5f;
     public float angularSpeedMultiplier = 1f;
     public float lineThickness = 0.1f;
     public Button swingToggleButton;
-    
+
+    [Header("Axis Constraints")]
+    public bool allowXAxis = true;
+    public bool allowYAxis = true;
+    public bool allowZAxis = true;
+
     private LineRenderer swingLine;
     private GameObject swingSphere;
     private bool isSwinging = false;
@@ -33,6 +38,7 @@ public class PlayerMovement : MonoBehaviour
     private Vector3 swingAxis;
     private float angularVelocity;
     private Vector3 storedVelocity;
+    private float currentSwingRadius;
     private Rigidbody rb;
     private Vector3 moveDirection;
     private bool isOnMud = false;
@@ -52,10 +58,11 @@ public class PlayerMovement : MonoBehaviour
         }
 
         InitializeSwingComponents();
-        
-        if(swingToggleButton != null)
+
+        if (swingToggleButton != null)
         {
             swingToggleButton.onClick.AddListener(ToggleSwing);
+            UpdateButtonColor();
         }
     }
 
@@ -115,7 +122,7 @@ public class PlayerMovement : MonoBehaviour
 
     void FixedUpdate()
     {
-        if(isSwinging)
+        if (isSwinging)
         {
             HandleSwingRotation();
         }
@@ -165,34 +172,35 @@ public class PlayerMovement : MonoBehaviour
     void HandleSwingRotation()
     {
         Vector3 toPlayer = transform.position - swingCenter.position;
-        float currentRadius = toPlayer.magnitude;
+        transform.position = swingCenter.position + toPlayer.normalized * currentSwingRadius;
+
+        // Apply axis constraints
+        Vector3 constrainedAxis = ApplyAxisConstraints(swingAxis);
         
-        // Maintain fixed radius
-        if(currentRadius != swingRadius)
-        {
-            transform.position = swingCenter.position + toPlayer.normalized * swingRadius;
-        }
-
-        // Calculate rotation axis based on initial velocity
-        Vector3 rotationDirection = Vector3.Cross(toPlayer, storedVelocity).normalized;
-        swingAxis = rotationDirection;
-
         // Apply continuous rotation
-        float angularSpeed = angularVelocity * angularSpeedMultiplier * Time.fixedDeltaTime;
-        transform.RotateAround(swingCenter.position, swingAxis, angularSpeed);
+        float rotationAmount = angularVelocity * angularSpeedMultiplier * Time.fixedDeltaTime;
+        transform.RotateAround(swingCenter.position, constrainedAxis, rotationAmount);
+    }
+
+    Vector3 ApplyAxisConstraints(Vector3 axis)
+    {
+        if (!allowXAxis) axis.x = 0;
+        if (!allowYAxis) axis.y = 0;
+        if (!allowZAxis) axis.z = 0;
+        return axis.normalized;
     }
 
     void HandleSwingInput()
     {
-        if(!swingEnabled) return;
+        if (!swingEnabled) return;
 
-        if(Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(0))
         {
-            if(!isSwinging && Vector3.Distance(transform.position, swingCenter.position) <= swingRadius * 1.2f)
+            if (!isSwinging && Vector3.Distance(transform.position, swingCenter.position) <= activationRadius)
             {
                 StartSwing();
             }
-            else if(isSwinging)
+            else if (isSwinging)
             {
                 ReleaseSwing();
             }
@@ -202,18 +210,18 @@ public class PlayerMovement : MonoBehaviour
     void StartSwing()
     {
         isSwinging = true;
-        storedVelocity = rb.linearVelocity;
-        rb.linearVelocity = Vector3.zero;
+        storedVelocity = rb.velocity;
+        currentSwingRadius = Vector3.Distance(transform.position, swingCenter.position);
+        
+        rb.velocity = Vector3.zero;
         rb.isKinematic = true;
 
-        // Position player at proper radius
-        Vector3 toCenter = swingCenter.position - transform.position;
-        transform.position = swingCenter.position - toCenter.normalized * swingRadius;
-
-        // Calculate initial angular velocity
-        Vector3 radiusVector = transform.position - swingCenter.position;
-        Vector3 tangentDirection = Vector3.Cross(radiusVector, Vector3.up).normalized;
-        angularVelocity = storedVelocity.magnitude / swingRadius * Mathf.Rad2Deg;
+        // Calculate initial rotation axis
+        Vector3 toCenter = (swingCenter.position - transform.position).normalized;
+        swingAxis = Vector3.Cross(toCenter, ApplyAxisConstraints(storedVelocity)).normalized;
+        
+        // Calculate angular velocity
+        angularVelocity = storedVelocity.magnitude / currentSwingRadius * Mathf.Rad2Deg;
 
         swingSphere.SetActive(true);
         swingLine.enabled = true;
@@ -225,9 +233,8 @@ public class PlayerMovement : MonoBehaviour
         rb.isKinematic = false;
 
         // Convert angular velocity to linear velocity
-        Vector3 radiusVector = transform.position - swingCenter.position;
-        Vector3 tangentDirection = Vector3.Cross(radiusVector, swingAxis).normalized;
-        rb.linearVelocity = tangentDirection * (angularVelocity * swingRadius * Mathf.Deg2Rad);
+        Vector3 tangentDirection = Vector3.Cross(swingAxis, (transform.position - swingCenter.position)).normalized;
+        rb.velocity = tangentDirection * (angularVelocity * currentSwingRadius * Mathf.Deg2Rad);
 
         swingSphere.SetActive(false);
         swingLine.enabled = false;
@@ -236,22 +243,30 @@ public class PlayerMovement : MonoBehaviour
     void ToggleSwing()
     {
         swingEnabled = !swingEnabled;
-        if(!swingEnabled && isSwinging)
+        UpdateButtonColor();
+        if (!swingEnabled && isSwinging)
         {
             ReleaseSwing();
         }
     }
 
+    void UpdateButtonColor()
+    {
+        if (swingToggleButton != null)
+        {
+            swingToggleButton.GetComponent<Image>().color = swingEnabled ? Color.green : Color.red;
+        }
+    }
+
     void UpdateSwingVisuals()
     {
-        if(isSwinging)
+        if (isSwinging)
         {
             swingLine.SetPosition(0, transform.position);
             swingLine.SetPosition(1, swingCenter.position);
         }
     }
 
-    // Existing collision methods
     void OnCollisionEnter(Collision collision)
     {
         if (collision.collider.CompareTag("ground") || 
