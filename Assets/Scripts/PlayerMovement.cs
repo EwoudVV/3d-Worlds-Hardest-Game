@@ -5,7 +5,6 @@ using UnityEngine.SceneManagement;
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerMovement : MonoBehaviour
 {
-    // Existing movement variables
     public float movementSpeed = 5f;
     public float mudSpeedMultiplier = 0.5f;
     public float iceAcceleration = 0.1f;
@@ -174,10 +173,8 @@ public class PlayerMovement : MonoBehaviour
         Vector3 toPlayer = transform.position - swingCenter.position;
         transform.position = swingCenter.position + toPlayer.normalized * currentSwingRadius;
 
-        // Apply axis constraints
         Vector3 constrainedAxis = ApplyAxisConstraints(swingAxis);
         
-        // Apply continuous rotation
         float rotationAmount = angularVelocity * angularSpeedMultiplier * Time.fixedDeltaTime;
         transform.RotateAround(swingCenter.position, constrainedAxis, rotationAmount);
     }
@@ -210,17 +207,15 @@ public class PlayerMovement : MonoBehaviour
     void StartSwing()
     {
         isSwinging = true;
-        storedVelocity = rb.velocity;
+        storedVelocity = rb.linearVelocity;
         currentSwingRadius = Vector3.Distance(transform.position, swingCenter.position);
         
-        rb.velocity = Vector3.zero;
+        rb.linearVelocity = Vector3.zero;
         rb.isKinematic = true;
 
-        // Calculate initial rotation axis
         Vector3 toCenter = (swingCenter.position - transform.position).normalized;
         swingAxis = Vector3.Cross(toCenter, ApplyAxisConstraints(storedVelocity)).normalized;
         
-        // Calculate angular velocity
         angularVelocity = storedVelocity.magnitude / currentSwingRadius * Mathf.Rad2Deg;
 
         swingSphere.SetActive(true);
@@ -232,9 +227,8 @@ public class PlayerMovement : MonoBehaviour
         isSwinging = false;
         rb.isKinematic = false;
 
-        // Convert angular velocity to linear velocity
         Vector3 tangentDirection = Vector3.Cross(swingAxis, (transform.position - swingCenter.position)).normalized;
-        rb.velocity = tangentDirection * (angularVelocity * currentSwingRadius * Mathf.Deg2Rad);
+        rb.linearVelocity = tangentDirection * (angularVelocity * currentSwingRadius * Mathf.Deg2Rad);
 
         swingSphere.SetActive(false);
         swingLine.enabled = false;

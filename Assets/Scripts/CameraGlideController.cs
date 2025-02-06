@@ -16,7 +16,6 @@ public class CameraGlideController : MonoBehaviour
 
     void Start()
     {
-        // Try to find a button if not assigned
         if (uiButton == null)
         {
             uiButton = FindObjectOfType<Button>(); 
@@ -34,7 +33,6 @@ public class CameraGlideController : MonoBehaviour
 
     void Update()
     {
-        // Only allow 'C' key for movement
         if (Input.GetKeyDown(KeyCode.C))
         {
             MoveToNextPosition();
