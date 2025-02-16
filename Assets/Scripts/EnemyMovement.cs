@@ -100,11 +100,12 @@ public class EnemyMovement : MonoBehaviour
         transform.position = new Vector3(x, transform.position.y, z);
     }
 
-    private void OnTriggerEnter(Collider other)
-    {
-        if (other.CompareTag("Player"))
-        {
-            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-        }
-    }
+//comment this stuff so that the enemy doesn't kill the player, the player movement script handles player teleportation to the start
+//    private void OnTriggerEnter(Collider other)
+//    {
+//        if (other.CompareTag("Player"))
+//        {
+//            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+//        }
+//    }
 }

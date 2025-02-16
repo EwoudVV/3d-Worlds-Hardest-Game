@@ -1,5 +1,6 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
 [RequireComponent(typeof(Rigidbody))]
@@ -15,29 +16,17 @@ public class PlayerMovement : MonoBehaviour
     public MovementKey moveDownKey = MovementKey.S;
     public MovementKey moveLeftKey = MovementKey.A;
     public MovementKey moveRightKey = MovementKey.D;
+    
+    [Header("Camera Reference")]
     public Transform cameraTransform;
 
-    // Swing system variables
-    [Header("Swing Settings")]
-    public Transform swingCenter;
-    public float activationRadius = 5f;
-    public float angularSpeedMultiplier = 1f;
-    public float lineThickness = 0.1f;
-    public Button swingToggleButton;
+    [Header("Death Settings")]
+    public bool enableDeathClones = false;
+    public Vector3 respawnPosition = Vector3.zero;
 
-    [Header("Axis Constraints")]
-    public bool allowXAxis = true;
-    public bool allowYAxis = true;
-    public bool allowZAxis = true;
+    [Header("Rotation Settings")]
+    public float rotationSpeed = 10f;
 
-    private LineRenderer swingLine;
-    private GameObject swingSphere;
-    private bool isSwinging = false;
-    private bool swingEnabled = true;
-    private Vector3 swingAxis;
-    private float angularVelocity;
-    private Vector3 storedVelocity;
-    private float currentSwingRadius;
     private Rigidbody rb;
     private Vector3 moveDirection;
     private bool isOnMud = false;
@@ -55,43 +44,9 @@ public class PlayerMovement : MonoBehaviour
         {
             cameraTransform = Camera.main.transform;
         }
-
-        InitializeSwingComponents();
-
-        if (swingToggleButton != null)
-        {
-            swingToggleButton.onClick.AddListener(ToggleSwing);
-            UpdateButtonColor();
-        }
-    }
-
-    void InitializeSwingComponents()
-    {
-        swingLine = gameObject.AddComponent<LineRenderer>();
-        swingLine.material = new Material(Shader.Find("Standard"));
-        swingLine.startColor = Color.white;
-        swingLine.endColor = Color.white;
-        swingLine.startWidth = lineThickness;
-        swingLine.endWidth = lineThickness;
-        swingLine.enabled = false;
-
-        swingSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        swingSphere.transform.SetParent(swingCenter);
-        swingSphere.transform.localPosition = Vector3.zero;
-        swingSphere.transform.localScale = Vector3.one * 0.5f;
-        swingSphere.GetComponent<Renderer>().material.color = Color.yellow;
-        swingSphere.SetActive(false);
-        Destroy(swingSphere.GetComponent<Collider>());
     }
 
     void Update()
-    {
-        HandleMovementInput();
-        HandleSwingInput();
-        UpdateSwingVisuals();
-    }
-
-    void HandleMovementInput()
     {
         float moveX = 0f;
         float moveZ = 0f;
@@ -120,18 +75,6 @@ public class PlayerMovement : MonoBehaviour
     }
 
     void FixedUpdate()
-    {
-        if (isSwinging)
-        {
-            HandleSwingRotation();
-        }
-        else
-        {
-            HandleNormalMovement();
-        }
-    }
-
-    void HandleNormalMovement()
     {
         bool isGrounded = groundContactCount > 0;
 
@@ -166,98 +109,15 @@ public class PlayerMovement : MonoBehaviour
         }
 
         rb.linearVelocity = velocity;
-    }
 
-    void HandleSwingRotation()
-    {
-        Vector3 toPlayer = transform.position - swingCenter.position;
-        transform.position = swingCenter.position + toPlayer.normalized * currentSwingRadius;
-
-        Vector3 constrainedAxis = ApplyAxisConstraints(swingAxis);
-        
-        float rotationAmount = angularVelocity * angularSpeedMultiplier * Time.fixedDeltaTime;
-        transform.RotateAround(swingCenter.position, constrainedAxis, rotationAmount);
-    }
-
-    Vector3 ApplyAxisConstraints(Vector3 axis)
-    {
-        if (!allowXAxis) axis.x = 0;
-        if (!allowYAxis) axis.y = 0;
-        if (!allowZAxis) axis.z = 0;
-        return axis.normalized;
-    }
-
-    void HandleSwingInput()
-    {
-        if (!swingEnabled) return;
-
-        if (Input.GetMouseButtonDown(0))
+        if (moveDirection != Vector3.zero)
         {
-            if (!isSwinging && Vector3.Distance(transform.position, swingCenter.position) <= activationRadius)
-            {
-                StartSwing();
-            }
-            else if (isSwinging)
-            {
-                ReleaseSwing();
-            }
-        }
-    }
-
-    void StartSwing()
-    {
-        isSwinging = true;
-        storedVelocity = rb.linearVelocity;
-        currentSwingRadius = Vector3.Distance(transform.position, swingCenter.position);
-        
-        rb.linearVelocity = Vector3.zero;
-        rb.isKinematic = true;
-
-        Vector3 toCenter = (swingCenter.position - transform.position).normalized;
-        swingAxis = Vector3.Cross(toCenter, ApplyAxisConstraints(storedVelocity)).normalized;
-        
-        angularVelocity = storedVelocity.magnitude / currentSwingRadius * Mathf.Rad2Deg;
-
-        swingSphere.SetActive(true);
-        swingLine.enabled = true;
-    }
-
-    void ReleaseSwing()
-    {
-        isSwinging = false;
-        rb.isKinematic = false;
-
-        Vector3 tangentDirection = Vector3.Cross(swingAxis, (transform.position - swingCenter.position)).normalized;
-        rb.linearVelocity = tangentDirection * (angularVelocity * currentSwingRadius * Mathf.Deg2Rad);
-
-        swingSphere.SetActive(false);
-        swingLine.enabled = false;
-    }
-
-    void ToggleSwing()
-    {
-        swingEnabled = !swingEnabled;
-        UpdateButtonColor();
-        if (!swingEnabled && isSwinging)
-        {
-            ReleaseSwing();
-        }
-    }
-
-    void UpdateButtonColor()
-    {
-        if (swingToggleButton != null)
-        {
-            swingToggleButton.GetComponent<Image>().color = swingEnabled ? Color.green : Color.red;
-        }
-    }
-
-    void UpdateSwingVisuals()
-    {
-        if (isSwinging)
-        {
-            swingLine.SetPosition(0, transform.position);
-            swingLine.SetPosition(1, swingCenter.position);
+            Vector3 horizontalDirection = new Vector3(moveDirection.x, 0f, moveDirection.z);
+            Quaternion targetRotation = Quaternion.LookRotation(horizontalDirection, Vector3.up);
+            Vector3 targetEuler = targetRotation.eulerAngles;
+            targetEuler.y = Mathf.Round(targetEuler.y / 90) * 90;
+            targetRotation = Quaternion.Euler(0, targetEuler.y, 0);
+            rb.MoveRotation(Quaternion.Slerp(rb.rotation, targetRotation, rotationSpeed * Time.fixedDeltaTime));
         }
     }
 
@@ -273,7 +133,16 @@ public class PlayerMovement : MonoBehaviour
         if (collision.collider.CompareTag("Mud")) isOnMud = true;
         if (collision.collider.CompareTag("Ice")) isOnIce = true;
         if (collision.collider.CompareTag("Finish")) LoadNextScene();
-        if (collision.collider.CompareTag("death")) RestartScene();
+        
+        if (collision.collider.CompareTag("death"))
+        {
+            if (enableDeathClones)
+            {
+                Vector3 spawnPosition = collision.GetContact(0).point;
+                CreateDeathClone(spawnPosition);
+            }
+            TeleportToRespawn();
+        }
     }
 
     void OnCollisionExit(Collision collision)
@@ -289,6 +158,39 @@ public class PlayerMovement : MonoBehaviour
         if (collision.collider.CompareTag("Ice")) isOnIce = false;
     }
 
+    void CreateDeathClone(Vector3 position)
+    {
+        GameObject clone = Instantiate(gameObject);
+        clone.transform.position = position;
+        Destroy(clone.GetComponent<PlayerMovement>());
+
+        foreach (Collider col in clone.GetComponents<Collider>())
+        {
+            Destroy(col);
+        }
+
+        BoxCollider newCollider = clone.AddComponent<BoxCollider>();
+        Rigidbody cloneRb = clone.GetComponent<Rigidbody>();
+        cloneRb.mass = rb.mass;
+        cloneRb.linearDamping = rb.linearDamping;
+        cloneRb.angularDamping = rb.angularDamping;
+
+        foreach (GameObject deathObject in GameObject.FindGameObjectsWithTag("death"))
+        {
+            foreach (Collider deathCol in deathObject.GetComponents<Collider>())
+            {
+                Physics.IgnoreCollision(newCollider, deathCol);
+            }
+        }
+    }
+
+    void TeleportToRespawn()
+    {
+        rb.position = respawnPosition;
+        rb.linearVelocity = Vector3.zero;
+        velocity = Vector3.zero;
+    }
+
     void LoadNextScene()
     {
         int nextSceneIndex = SceneManager.GetActiveScene().buildIndex + 1;
@@ -296,11 +198,6 @@ public class PlayerMovement : MonoBehaviour
         {
             SceneManager.LoadScene(nextSceneIndex);
         }
-    }
-
-    void RestartScene()
-    {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
     KeyCode GetKeyCode(MovementKey key)
