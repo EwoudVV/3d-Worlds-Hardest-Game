@@ -1,7 +1,7 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using TMPro;
+using UnityEngine.UI;
 
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerMovement : MonoBehaviour
@@ -16,34 +16,30 @@ public class PlayerMovement : MonoBehaviour
     public MovementKey moveDownKey = MovementKey.S;
     public MovementKey moveLeftKey = MovementKey.A;
     public MovementKey moveRightKey = MovementKey.D;
-    
-    [Header("Camera Reference")]
     public Transform cameraTransform;
-
-    [Header("Death Settings")]
     public bool enableDeathClones = false;
     public Vector3 respawnPosition = Vector3.zero;
-
-    [Header("Rotation Settings")]
     public float rotationSpeed = 10f;
+    public TMP_Text deathText;
+    public Button respawnButton;
 
     private Rigidbody rb;
     private Vector3 moveDirection;
-    private bool isOnMud = false;
-    private bool isOnIce = false;
+    private bool isOnMud;
+    private bool isOnIce;
     private Vector3 velocity;
-    private int groundContactCount = 0;
+    private int groundContactCount;
+    private int deathCount;
+    private Vector3 currentRespawn;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
-        rb.linearDamping = 0;
-
-        if (cameraTransform == null)
-        {
-            cameraTransform = Camera.main.transform;
-        }
+        currentRespawn = respawnPosition;
+        if (!cameraTransform) cameraTransform = Camera.main.transform;
+        if (deathText) deathText.text = ": 0";
+        if (respawnButton) respawnButton.onClick.AddListener(TriggerRespawn);
     }
 
     void Update()
@@ -58,30 +54,26 @@ public class PlayerMovement : MonoBehaviour
 
         Vector3 cameraForward = cameraTransform.forward;
         Vector3 cameraRight = cameraTransform.right;
-
         cameraForward.y = 0;
         cameraRight.y = 0;
 
-        if (cameraForward.magnitude < 0.01f)
-        {
-            cameraForward = cameraTransform.up;
-            cameraForward.y = 0;
-        }
-
+        if (cameraForward.magnitude < 0.01f) cameraForward = cameraTransform.up;
         cameraForward.Normalize();
         cameraRight.Normalize();
 
         moveDirection = (cameraForward * moveZ + cameraRight * moveX).normalized;
+
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            TriggerRespawn();
+        }
     }
 
     void FixedUpdate()
     {
-        bool isGrounded = groundContactCount > 0;
-
-        if (isOnMud)
-        {
-            velocity = moveDirection * movementSpeed * mudSpeedMultiplier;
-        }
+        bool grounded = groundContactCount > 0;
+        
+        if (isOnMud) velocity = moveDirection * (movementSpeed * mudSpeedMultiplier);
         else if (isOnIce)
         {
             if (moveDirection != Vector3.zero)
@@ -89,115 +81,94 @@ public class PlayerMovement : MonoBehaviour
                 velocity += moveDirection * iceAcceleration;
                 if (velocity.magnitude > maxIceSpeed) velocity = velocity.normalized * maxIceSpeed;
             }
-            else
-            {
-                velocity *= iceFriction;
-            }
+            else velocity *= iceFriction;
         }
-        else
-        {
-            velocity = moveDirection * movementSpeed;
-        }
+        else velocity = moveDirection * movementSpeed;
 
-        if (isGrounded)
-        {
-            velocity.y = 0;
-        }
-        else
-        {
-            velocity.y = rb.linearVelocity.y * verticalFriction;
-        }
-
+        velocity.y = grounded ? 0 : rb.linearVelocity.y * verticalFriction;
         rb.linearVelocity = velocity;
 
         if (moveDirection != Vector3.zero)
         {
-            Vector3 horizontalDirection = new Vector3(moveDirection.x, 0f, moveDirection.z);
-            Quaternion targetRotation = Quaternion.LookRotation(horizontalDirection, Vector3.up);
-            Vector3 targetEuler = targetRotation.eulerAngles;
+            Vector3 horizontalDirection = new Vector3(moveDirection.x, 0, moveDirection.z);
+            Quaternion targetRot = Quaternion.LookRotation(horizontalDirection);
+            Vector3 targetEuler = targetRot.eulerAngles;
             targetEuler.y = Mathf.Round(targetEuler.y / 90) * 90;
-            targetRotation = Quaternion.Euler(0, targetEuler.y, 0);
-            rb.MoveRotation(Quaternion.Slerp(rb.rotation, targetRotation, rotationSpeed * Time.fixedDeltaTime));
+            rb.MoveRotation(Quaternion.Slerp(rb.rotation, Quaternion.Euler(0, targetEuler.y, 0), rotationSpeed * Time.fixedDeltaTime));
         }
     }
 
     void OnCollisionEnter(Collision collision)
     {
-        if (collision.collider.CompareTag("ground") || 
-            collision.collider.CompareTag("Mud") || 
-            collision.collider.CompareTag("Ice"))
-        {
-            groundContactCount++;
-        }
-
+        if (collision.collider.CompareTag("ground") || collision.collider.CompareTag("Mud") || collision.collider.CompareTag("Ice")) groundContactCount++;
         if (collision.collider.CompareTag("Mud")) isOnMud = true;
         if (collision.collider.CompareTag("Ice")) isOnIce = true;
-        if (collision.collider.CompareTag("Finish")) LoadNextScene();
         
-        if (collision.collider.CompareTag("death"))
+        if (collision.collider.CompareTag("Checkpoint"))
         {
-            if (enableDeathClones)
+            foreach (ContactPoint contact in collision.contacts)
             {
-                Vector3 spawnPosition = collision.GetContact(0).point;
-                CreateDeathClone(spawnPosition);
+                if (contact.normal.y > 0.7f)
+                {
+                    currentRespawn = contact.point + Vector3.up;
+                    Checkpoint cp = collision.collider.GetComponent<Checkpoint>();
+                    if (cp != null && cp.useCustomPosition) currentRespawn = cp.customRespawnPosition;
+                    break;
+                }
             }
-            TeleportToRespawn();
         }
+
+        if (collision.collider.CompareTag("Finish")) LoadNextScene();
+        if (collision.collider.CompareTag("death")) HandleDeath(collision);
     }
 
     void OnCollisionExit(Collision collision)
     {
-        if (collision.collider.CompareTag("ground") || 
-            collision.collider.CompareTag("Mud") || 
-            collision.collider.CompareTag("Ice"))
-        {
-            groundContactCount--;
-        }
-
+        if (collision.collider.CompareTag("ground") || collision.collider.CompareTag("Mud") || collision.collider.CompareTag("Ice")) groundContactCount--;
         if (collision.collider.CompareTag("Mud")) isOnMud = false;
         if (collision.collider.CompareTag("Ice")) isOnIce = false;
     }
 
-    void CreateDeathClone(Vector3 position)
+    void HandleDeath(Collision collision)
     {
-        GameObject clone = Instantiate(gameObject);
-        clone.transform.position = position;
-        Destroy(clone.GetComponent<PlayerMovement>());
-
-        foreach (Collider col in clone.GetComponents<Collider>())
+        if (enableDeathClones && collision != null)
         {
-            Destroy(col);
+            Vector3 pos = collision.contactCount > 0 ? collision.GetContact(0).point : transform.position;
+            CreateDeathClone(pos);
         }
+        TeleportToRespawn();
+    }
 
-        BoxCollider newCollider = clone.AddComponent<BoxCollider>();
+    void CreateDeathClone(Vector3 pos)
+    {
+        GameObject clone = Instantiate(gameObject, pos, Quaternion.identity);
+        Destroy(clone.GetComponent<PlayerMovement>());
+        foreach (Collider c in clone.GetComponents<Collider>()) Destroy(c);
+        BoxCollider cloneCollider = clone.AddComponent<BoxCollider>();
         Rigidbody cloneRb = clone.GetComponent<Rigidbody>();
         cloneRb.mass = rb.mass;
-        cloneRb.linearDamping = rb.linearDamping;
-        cloneRb.angularDamping = rb.angularDamping;
-
-        foreach (GameObject deathObject in GameObject.FindGameObjectsWithTag("death"))
+        foreach (GameObject deathObj in GameObject.FindGameObjectsWithTag("death"))
         {
-            foreach (Collider deathCol in deathObject.GetComponents<Collider>())
+            Collider deathCollider = deathObj.GetComponent<Collider>();
+            if (deathCollider != null)
             {
-                Physics.IgnoreCollision(newCollider, deathCol);
+                Physics.IgnoreCollision(cloneCollider, deathCollider);
             }
         }
     }
 
     void TeleportToRespawn()
     {
-        rb.position = respawnPosition;
+        rb.position = currentRespawn;
         rb.linearVelocity = Vector3.zero;
-        velocity = Vector3.zero;
+        deathCount++;
+        if (deathText) deathText.text = $": {deathCount}";
     }
 
     void LoadNextScene()
     {
         int nextSceneIndex = SceneManager.GetActiveScene().buildIndex + 1;
-        if (nextSceneIndex < SceneManager.sceneCountInBuildSettings)
-        {
-            SceneManager.LoadScene(nextSceneIndex);
-        }
+        if (nextSceneIndex < SceneManager.sceneCountInBuildSettings) SceneManager.LoadScene(nextSceneIndex);
     }
 
     KeyCode GetKeyCode(MovementKey key)
@@ -211,6 +182,17 @@ public class PlayerMovement : MonoBehaviour
             default: return KeyCode.None;
         }
     }
+
+    public void TriggerRespawn()
+    {
+        HandleDeath(null);
+    }
+}
+
+public class Checkpoint : MonoBehaviour
+{
+    public bool useCustomPosition;
+    public Vector3 customRespawnPosition;
 }
 
 public enum MovementKey

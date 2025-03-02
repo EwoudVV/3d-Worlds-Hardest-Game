@@ -38,7 +38,6 @@ public class CameraGlideController : MonoBehaviour
             MoveToNextPosition();
         }
 
-        // Follow target if applicable
         if (followTarget != null && currentIndex == followTargetIndex)
         {
             transform.position = followTarget.position;

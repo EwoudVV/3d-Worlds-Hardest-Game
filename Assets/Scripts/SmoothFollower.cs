@@ -12,7 +12,6 @@ public class SmoothFollower : MonoBehaviour
     void Update()
     {
         if (target == null) return;
-
         transform.position = Vector3.SmoothDamp(
             transform.position,
             target.position,

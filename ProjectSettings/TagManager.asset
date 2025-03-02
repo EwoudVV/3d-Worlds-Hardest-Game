@@ -9,6 +9,10 @@ TagManager:
   - Mud
   - ground
   - death
+  - bablockyes
+  - bablockno
+  - Wind
+  - Checkpoint
   layers:
   - Default
   - TransparentFX

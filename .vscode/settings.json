@@ -51,5 +51,5 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "3d_World's_Hardest_Game.sln"
+    "dotnet.defaultSolution": "3d-Worlds-Hardest-Game.sln"
 }
