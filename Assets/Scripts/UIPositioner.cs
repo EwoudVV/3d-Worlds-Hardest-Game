@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.UI;
 
 public class UIPositioner : MonoBehaviour
 {
@@ -26,39 +25,44 @@ public class UIPositioner : MonoBehaviour
     {
         if (!rectTransform) return;
 
-        Vector2 min = Vector2.zero;
-        Vector2 max = Vector2.zero;
+        Vector2 anchorMin = Vector2.zero;
+        Vector2 anchorMax = Vector2.zero;
         Vector2 pivot = Vector2.zero;
 
         switch (corner)
         {
             case ScreenCorner.TopLeft:
-                min = new Vector2(0, 1);
-                max = new Vector2(0, 1);
+                anchorMin = new Vector2(0, 1);
+                anchorMax = new Vector2(0, 1);
                 pivot = new Vector2(0, 1);
                 break;
             case ScreenCorner.TopRight:
-                min = new Vector2(1, 1);
-                max = new Vector2(1, 1);
+                anchorMin = new Vector2(1, 1);
+                anchorMax = new Vector2(1, 1);
                 pivot = new Vector2(1, 1);
                 break;
             case ScreenCorner.BottomLeft:
-                min = new Vector2(0, 0);
-                max = new Vector2(0, 0);
+                anchorMin = new Vector2(0, 0);
+                anchorMax = new Vector2(0, 0);
                 pivot = new Vector2(0, 0);
                 break;
             case ScreenCorner.BottomRight:
-                min = new Vector2(1, 0);
-                max = new Vector2(1, 0);
+                anchorMin = new Vector2(1, 0);
+                anchorMax = new Vector2(1, 0);
                 pivot = new Vector2(1, 0);
                 break;
         }
 
-        rectTransform.anchorMin = min;
-        rectTransform.anchorMax = max;
+        rectTransform.anchorMin = anchorMin;
+        rectTransform.anchorMax = anchorMax;
         rectTransform.pivot = pivot;
-        rectTransform.anchoredPosition = new Vector2(margin.x * (corner == ScreenCorner.TopLeft || corner == ScreenCorner.BottomLeft ? 1 : -1), 
-                                                   margin.y * (corner == ScreenCorner.TopLeft || corner == ScreenCorner.TopRight ? -1 : 1));
+
+        Vector2 offset = new Vector2(
+            margin.x * (corner == ScreenCorner.TopLeft || corner == ScreenCorner.BottomLeft ? 1 : -1),
+            margin.y * (corner == ScreenCorner.TopLeft || corner == ScreenCorner.TopRight ? -1 : 1)
+        );
+
+        rectTransform.anchoredPosition = offset;
     }
 
     void OnRectTransformDimensionsChange()

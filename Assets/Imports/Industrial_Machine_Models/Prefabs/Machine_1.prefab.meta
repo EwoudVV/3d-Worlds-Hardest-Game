@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: c818fcbe9d69eb44d9440ab7c8465a1e
+timeCreated: 1515434976
+licenseType: Store
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 100100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 66217
+  packageName: Industrial Machine Models
+  packageVersion: 1.1
+  assetPath: Assets/Industrial_Machine_Models/Prefabs/Machine_1.prefab
+  uploadId: 222899

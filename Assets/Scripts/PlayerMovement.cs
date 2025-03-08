@@ -19,9 +19,10 @@ public class PlayerMovement : MonoBehaviour
     public Transform cameraTransform;
     public bool enableDeathClones = false;
     public Vector3 respawnPosition = Vector3.zero;
-    public float rotationSpeed = 10f;
+    public float rotationSpeed = 10f; // Turning speed (degrees per second)
     public TMP_Text deathText;
     public Button respawnButton;
+    public Transform turnPivot;  // Set this to the pivot GameObject under the player
 
     private Rigidbody rb;
     private Vector3 moveDirection;
@@ -37,73 +38,99 @@ public class PlayerMovement : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
         currentRespawn = respawnPosition;
-        if (!cameraTransform) cameraTransform = Camera.main.transform;
-        if (deathText) deathText.text = ": 0";
-        if (respawnButton) respawnButton.onClick.AddListener(TriggerRespawn);
+        if (cameraTransform == null)
+            cameraTransform = Camera.main.transform;
+        if (deathText)
+            deathText.text = ": 0";
+        if (respawnButton)
+            respawnButton.onClick.AddListener(TriggerRespawn);
     }
 
     void Update()
     {
         float moveX = 0f;
         float moveZ = 0f;
+        if (Input.GetKey(GetKeyCode(moveUpKey)))
+            moveZ = 1f;
+        if (Input.GetKey(GetKeyCode(moveDownKey)))
+            moveZ = -1f;
+        if (Input.GetKey(GetKeyCode(moveLeftKey)))
+            moveX = -1f;
+        if (Input.GetKey(GetKeyCode(moveRightKey)))
+            moveX = 1f;
 
-        if (Input.GetKey(GetKeyCode(moveUpKey))) moveZ = 1f;
-        if (Input.GetKey(GetKeyCode(moveDownKey))) moveZ = -1f;
-        if (Input.GetKey(GetKeyCode(moveLeftKey))) moveX = -1f;
-        if (Input.GetKey(GetKeyCode(moveRightKey))) moveX = 1f;
-
-        Vector3 cameraForward = cameraTransform.forward;
-        Vector3 cameraRight = cameraTransform.right;
-        cameraForward.y = 0;
-        cameraRight.y = 0;
-
-        if (cameraForward.magnitude < 0.01f) cameraForward = cameraTransform.up;
-        cameraForward.Normalize();
-        cameraRight.Normalize();
-
-        moveDirection = (cameraForward * moveZ + cameraRight * moveX).normalized;
-
+        Vector3 camForward = cameraTransform.forward;
+        Vector3 camRight = cameraTransform.right;
+        camForward.y = 0;
+        camRight.y = 0;
+        if (camForward.magnitude < 0.01f)
+            camForward = cameraTransform.up;
+        camForward.Normalize();
+        camRight.Normalize();
+        moveDirection = (camForward * moveZ + camRight * moveX).normalized;
         if (Input.GetKeyDown(KeyCode.R))
-        {
             TriggerRespawn();
-        }
     }
 
     void FixedUpdate()
     {
         bool grounded = groundContactCount > 0;
-        
-        if (isOnMud) velocity = moveDirection * (movementSpeed * mudSpeedMultiplier);
+
+        // Calculate movement velocity based on surface type
+        if (isOnMud)
+            velocity = moveDirection * (movementSpeed * mudSpeedMultiplier);
         else if (isOnIce)
         {
             if (moveDirection != Vector3.zero)
             {
                 velocity += moveDirection * iceAcceleration;
-                if (velocity.magnitude > maxIceSpeed) velocity = velocity.normalized * maxIceSpeed;
+                if (velocity.magnitude > maxIceSpeed)
+                    velocity = velocity.normalized * maxIceSpeed;
             }
-            else velocity *= iceFriction;
+            else
+                velocity *= iceFriction;
         }
-        else velocity = moveDirection * movementSpeed;
+        else
+            velocity = moveDirection * movementSpeed;
 
         velocity.y = grounded ? 0 : rb.linearVelocity.y * verticalFriction;
         rb.linearVelocity = velocity;
 
         if (moveDirection != Vector3.zero)
         {
-            Vector3 horizontalDirection = new Vector3(moveDirection.x, 0, moveDirection.z);
-            Quaternion targetRot = Quaternion.LookRotation(horizontalDirection);
-            Vector3 targetEuler = targetRot.eulerAngles;
-            targetEuler.y = Mathf.Round(targetEuler.y / 90) * 90;
-            rb.MoveRotation(Quaternion.Slerp(rb.rotation, Quaternion.Euler(0, targetEuler.y, 0), rotationSpeed * Time.fixedDeltaTime));
+            // Calculate target angle (in degrees) from input direction
+            float targetAngle = Mathf.Atan2(moveDirection.x, moveDirection.z) * Mathf.Rad2Deg;
+            if (turnPivot != null)
+            {
+                // Get current Y angle of the player
+                float currentAngle = transform.eulerAngles.y;
+                // Smoothly interpolate towards the target angle using rotationSpeed
+                float newAngle = Mathf.MoveTowardsAngle(currentAngle, targetAngle, rotationSpeed * Time.fixedDeltaTime);
+                Quaternion newRot = Quaternion.Euler(0, newAngle, 0);
+                // Determine the change in angle and rotate the offset from the pivot
+                float angleDelta = newAngle - currentAngle;
+                Vector3 pivotOffset = transform.position - turnPivot.position;
+                Vector3 rotatedOffset = Quaternion.Euler(0, angleDelta, 0) * pivotOffset;
+                rb.MoveRotation(newRot);
+                rb.MovePosition(turnPivot.position + rotatedOffset);
+            }
+            else
+            {
+                // If no pivot is set, smoothly rotate in place
+                Quaternion newRot = Quaternion.RotateTowards(rb.rotation, Quaternion.Euler(0, targetAngle, 0), rotationSpeed * Time.fixedDeltaTime);
+                rb.MoveRotation(newRot);
+            }
         }
     }
 
     void OnCollisionEnter(Collision collision)
     {
-        if (collision.collider.CompareTag("ground") || collision.collider.CompareTag("Mud") || collision.collider.CompareTag("Ice")) groundContactCount++;
-        if (collision.collider.CompareTag("Mud")) isOnMud = true;
-        if (collision.collider.CompareTag("Ice")) isOnIce = true;
-        
+        if (collision.collider.CompareTag("ground") || collision.collider.CompareTag("Mud") || collision.collider.CompareTag("Ice"))
+            groundContactCount++;
+        if (collision.collider.CompareTag("Mud"))
+            isOnMud = true;
+        if (collision.collider.CompareTag("Ice"))
+            isOnIce = true;
         if (collision.collider.CompareTag("Checkpoint"))
         {
             foreach (ContactPoint contact in collision.contacts)
@@ -112,21 +139,26 @@ public class PlayerMovement : MonoBehaviour
                 {
                     currentRespawn = contact.point + Vector3.up;
                     Checkpoint cp = collision.collider.GetComponent<Checkpoint>();
-                    if (cp != null && cp.useCustomPosition) currentRespawn = cp.customRespawnPosition;
+                    if (cp != null && cp.useCustomPosition)
+                        currentRespawn = cp.customRespawnPosition;
                     break;
                 }
             }
         }
-
-        if (collision.collider.CompareTag("Finish")) LoadNextScene();
-        if (collision.collider.CompareTag("death")) HandleDeath(collision);
+        if (collision.collider.CompareTag("Finish"))
+            LoadNextScene();
+        if (collision.collider.CompareTag("death"))
+            HandleDeath(collision);
     }
 
     void OnCollisionExit(Collision collision)
     {
-        if (collision.collider.CompareTag("ground") || collision.collider.CompareTag("Mud") || collision.collider.CompareTag("Ice")) groundContactCount--;
-        if (collision.collider.CompareTag("Mud")) isOnMud = false;
-        if (collision.collider.CompareTag("Ice")) isOnIce = false;
+        if (collision.collider.CompareTag("ground") || collision.collider.CompareTag("Mud") || collision.collider.CompareTag("Ice"))
+            groundContactCount--;
+        if (collision.collider.CompareTag("Mud"))
+            isOnMud = false;
+        if (collision.collider.CompareTag("Ice"))
+            isOnIce = false;
     }
 
     void HandleDeath(Collision collision)
@@ -143,7 +175,8 @@ public class PlayerMovement : MonoBehaviour
     {
         GameObject clone = Instantiate(gameObject, pos, Quaternion.identity);
         Destroy(clone.GetComponent<PlayerMovement>());
-        foreach (Collider c in clone.GetComponents<Collider>()) Destroy(c);
+        foreach (Collider c in clone.GetComponents<Collider>())
+            Destroy(c);
         BoxCollider cloneCollider = clone.AddComponent<BoxCollider>();
         Rigidbody cloneRb = clone.GetComponent<Rigidbody>();
         cloneRb.mass = rb.mass;
@@ -151,9 +184,7 @@ public class PlayerMovement : MonoBehaviour
         {
             Collider deathCollider = deathObj.GetComponent<Collider>();
             if (deathCollider != null)
-            {
                 Physics.IgnoreCollision(cloneCollider, deathCollider);
-            }
         }
     }
 
@@ -162,13 +193,15 @@ public class PlayerMovement : MonoBehaviour
         rb.position = currentRespawn;
         rb.linearVelocity = Vector3.zero;
         deathCount++;
-        if (deathText) deathText.text = $": {deathCount}";
+        if (deathText)
+            deathText.text = $": {deathCount}";
     }
 
     void LoadNextScene()
     {
         int nextSceneIndex = SceneManager.GetActiveScene().buildIndex + 1;
-        if (nextSceneIndex < SceneManager.sceneCountInBuildSettings) SceneManager.LoadScene(nextSceneIndex);
+        if (nextSceneIndex < SceneManager.sceneCountInBuildSettings)
+            SceneManager.LoadScene(nextSceneIndex);
     }
 
     KeyCode GetKeyCode(MovementKey key)
@@ -183,10 +216,7 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    public void TriggerRespawn()
-    {
-        HandleDeath(null);
-    }
+    public void TriggerRespawn() { HandleDeath(null); }
 }
 
 public class Checkpoint : MonoBehaviour
@@ -195,10 +225,4 @@ public class Checkpoint : MonoBehaviour
     public Vector3 customRespawnPosition;
 }
 
-public enum MovementKey
-{
-    W,
-    A,
-    S,
-    D
-}
+public enum MovementKey { W, A, S, D }

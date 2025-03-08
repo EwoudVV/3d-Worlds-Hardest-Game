@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 122fa6eb03ce86a4aab14ffb7ef74000
+timeCreated: 1515433261
+licenseType: Store
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 66217
+  packageName: Industrial Machine Models
+  packageVersion: 1.1
+  assetPath: Assets/Industrial_Machine_Models/Materials/Machine_2.mat
+  uploadId: 222899
