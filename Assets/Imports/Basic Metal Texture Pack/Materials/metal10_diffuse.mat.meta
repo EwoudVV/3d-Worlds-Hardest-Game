@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 278605e126bfe364ab79edc92bfe116e
+timeCreated: 1432175263
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 37402
+  packageName: Basic Metal Texture Pack
+  packageVersion: 1.0
+  assetPath: Assets/Basic Metal Texture Pack/Materials/metal10_diffuse.mat
+  uploadId: 64598

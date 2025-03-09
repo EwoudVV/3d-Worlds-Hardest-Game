@@ -1,0 +1,21 @@
+fileFormatVersion: 2
+guid: 39cb167f775154e459d7805891cf8adf
+labels:
+- door
+- dirty
+- rusty
+- industrial
+- metal
+- urban
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 5397
+  packageName: Metal Door
+  packageVersion: 1.1
+  assetPath: Assets/Doors/sample scene.unity
+  uploadId: 28320

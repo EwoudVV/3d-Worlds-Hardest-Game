@@ -8,14 +8,13 @@ public class CameraGlideController : MonoBehaviour
 {
     public List<Transform> cameraPositions = new List<Transform>();
     public float moveSpeed = 2f;
-    public float povTransitionTime = 0.5f;
     public Button povSwitchButton;
     public Button cwRotateButton;
     public Button ccwRotateButton;
     public Transform followTarget;
     public int followTargetIndex = 0;
     public Transform player;
-    public float fpvDistance = 3f;
+    public float fpvDistance = 1.5f;
     public float fpvVerticalOffset = 2f;
     public float orbitAcceleration = 90f;
 
@@ -89,9 +88,10 @@ public class CameraGlideController : MonoBehaviour
         Vector3 startPos = transform.position;
         Quaternion startRot = transform.rotation;
         float elapsed = 0f;
-        float duration = (currentIndex == followTargetIndex && player != null) ? povTransitionTime : (1f / moveSpeed);
+        float duration = 1f / moveSpeed;
         Vector3 endPos;
         Quaternion endRot;
+        
         if (currentIndex == followTargetIndex && player != null)
         {
             endPos = player.position + new Vector3(fpvDistance * Mathf.Sin(targetOrbitAngle * Mathf.Deg2Rad), fpvVerticalOffset, fpvDistance * Mathf.Cos(targetOrbitAngle * Mathf.Deg2Rad));
@@ -102,6 +102,7 @@ public class CameraGlideController : MonoBehaviour
             endPos = targetTransform.position;
             endRot = targetTransform.rotation;
         }
+
         while (elapsed < duration)
         {
             transform.position = Vector3.Lerp(startPos, endPos, elapsed / duration);
