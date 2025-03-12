@@ -1,0 +1,178 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class ReadOnlyAttribute : PropertyAttribute { }
+
+[System.Serializable]
+public class ObjectAction
+{
+    public enum ActionType { Move, Rotate, Wait }
+    public ActionType type;
+
+    [Header("Movement Settings")]
+    public GameObject moveTarget;
+
+    [Header("Rotation Settings")]
+    public Vector3 rotationDegrees;
+
+    [Header("Timing Configuration")]
+    [Tooltip("Check to use speed, uncheck to use duration")]
+    public bool useSpeed;
+    [Tooltip("Units/sec for movement, deg/sec for rotation")]
+    public float speed;
+    [Tooltip("Duration in seconds")]
+    public float duration;
+
+    [SerializeField, ReadOnly]
+    [Tooltip("Calculated duration based on speed")]
+    public float calculatedDuration;
+}
+
+[System.Serializable]
+public class ObjectEntry
+{
+    public GameObject targetObject;
+    public List<ObjectAction> actions = new List<ObjectAction>();
+}
+
+public class Controller : MonoBehaviour
+{
+    public List<ObjectEntry> objectsToControl = new List<ObjectEntry>();
+
+    void OnValidate()
+    {
+        foreach (var entry in objectsToControl)
+        {
+            if (entry.targetObject == null) continue;
+
+            foreach (var action in entry.actions)
+            {
+                UpdateCalculations(entry.targetObject, action);
+            }
+        }
+    }
+
+    void UpdateCalculations(GameObject obj, ObjectAction action)
+    {
+        if (action.useSpeed)
+        {
+            switch (action.type)
+            {
+                case ObjectAction.ActionType.Move when action.moveTarget != null:
+                    float distance = Vector3.Distance(
+                        obj.transform.position,
+                        action.moveTarget.transform.position
+                    );
+                    action.calculatedDuration = distance / action.speed;
+                    break;
+
+                case ObjectAction.ActionType.Rotate:
+                    float maxRotation = Mathf.Max(
+                        Mathf.Abs(action.rotationDegrees.x),
+                        Mathf.Abs(action.rotationDegrees.y),
+                        Mathf.Abs(action.rotationDegrees.z)
+                    );
+                    action.calculatedDuration = maxRotation / action.speed;
+                    break;
+
+                default:
+                    action.calculatedDuration = action.duration;
+                    break;
+            }
+        }
+        else
+        {
+            action.calculatedDuration = action.duration;
+        }
+    }
+
+    void Start()
+    {
+        foreach (var entry in objectsToControl)
+        {
+            if (entry.targetObject != null)
+            {
+                StartCoroutine(ProcessEntry(entry));
+            }
+        }
+    }
+
+    IEnumerator ProcessEntry(ObjectEntry entry)
+    {
+        foreach (var action in entry.actions)
+        {
+            yield return ExecuteAction(entry.targetObject, action);
+        }
+    }
+
+    IEnumerator ExecuteAction(GameObject obj, ObjectAction action)
+    {
+        float duration = action.useSpeed ? 
+            action.calculatedDuration : 
+            action.duration;
+
+        switch (action.type)
+        {
+            case ObjectAction.ActionType.Move:
+                if (action.moveTarget != null)
+                {
+                    yield return MoveToTarget(
+                        obj,
+                        action.moveTarget.transform.position,
+                        duration
+                    );
+                }
+                break;
+
+            case ObjectAction.ActionType.Rotate:
+                yield return RotateObject(
+                    obj,
+                    action.rotationDegrees,
+                    duration
+                );
+                break;
+
+            case ObjectAction.ActionType.Wait:
+                yield return new WaitForSeconds(duration);
+                break;
+        }
+    }
+
+    IEnumerator MoveToTarget(GameObject obj, Vector3 targetPos, float duration)
+    {
+        Vector3 startPos = obj.transform.position;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            obj.transform.position = Vector3.Lerp(
+                startPos, 
+                targetPos, 
+                elapsed / duration
+            );
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+        obj.transform.position = targetPos;
+    }
+
+    IEnumerator RotateObject(GameObject obj, Vector3 rotation, float duration)
+    {
+        Vector3 startRot = obj.transform.eulerAngles;
+        Vector3 targetRot = startRot + rotation;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            obj.transform.eulerAngles = new Vector3(
+                Mathf.LerpAngle(startRot.x, targetRot.x, elapsed / duration),
+                Mathf.LerpAngle(startRot.y, targetRot.y, elapsed / duration),
+                Mathf.LerpAngle(startRot.z, targetRot.z, elapsed / duration)
+            );
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+        obj.transform.eulerAngles = targetRot;
+    }
+}

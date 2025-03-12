@@ -19,10 +19,11 @@ public class PlayerMovement : MonoBehaviour
     public Transform cameraTransform;
     public bool enableDeathClones = false;
     public Vector3 respawnPosition = Vector3.zero;
-    public float rotationSpeed = 10f; // Turning speed (degrees per second)
+    public float rotationSpeed = 10f;
     public TMP_Text deathText;
     public Button respawnButton;
-    public Transform turnPivot;  // Set this to the pivot GameObject under the player
+    public Transform turnPivot;
+    public bool disableRRespawn;
 
     private Rigidbody rb;
     private Vector3 moveDirection;
@@ -68,7 +69,7 @@ public class PlayerMovement : MonoBehaviour
         camForward.Normalize();
         camRight.Normalize();
         moveDirection = (camForward * moveZ + camRight * moveX).normalized;
-        if (Input.GetKeyDown(KeyCode.R))
+        if (Input.GetKeyDown(KeyCode.R) && !disableRRespawn)
             TriggerRespawn();
     }
 
@@ -76,7 +77,6 @@ public class PlayerMovement : MonoBehaviour
     {
         bool grounded = groundContactCount > 0;
 
-        // Calculate movement velocity based on surface type
         if (isOnMud)
             velocity = moveDirection * (movementSpeed * mudSpeedMultiplier);
         else if (isOnIce)
@@ -98,16 +98,12 @@ public class PlayerMovement : MonoBehaviour
 
         if (moveDirection != Vector3.zero)
         {
-            // Calculate target angle (in degrees) from input direction
             float targetAngle = Mathf.Atan2(moveDirection.x, moveDirection.z) * Mathf.Rad2Deg;
             if (turnPivot != null)
             {
-                // Get current Y angle of the player
                 float currentAngle = transform.eulerAngles.y;
-                // Smoothly interpolate towards the target angle using rotationSpeed
                 float newAngle = Mathf.MoveTowardsAngle(currentAngle, targetAngle, rotationSpeed * Time.fixedDeltaTime);
                 Quaternion newRot = Quaternion.Euler(0, newAngle, 0);
-                // Determine the change in angle and rotate the offset from the pivot
                 float angleDelta = newAngle - currentAngle;
                 Vector3 pivotOffset = transform.position - turnPivot.position;
                 Vector3 rotatedOffset = Quaternion.Euler(0, angleDelta, 0) * pivotOffset;
@@ -116,7 +112,6 @@ public class PlayerMovement : MonoBehaviour
             }
             else
             {
-                // If no pivot is set, smoothly rotate in place
                 Quaternion newRot = Quaternion.RotateTowards(rb.rotation, Quaternion.Euler(0, targetAngle, 0), rotationSpeed * Time.fixedDeltaTime);
                 rb.MoveRotation(newRot);
             }
@@ -180,6 +175,10 @@ public class PlayerMovement : MonoBehaviour
         BoxCollider cloneCollider = clone.AddComponent<BoxCollider>();
         Rigidbody cloneRb = clone.GetComponent<Rigidbody>();
         cloneRb.mass = rb.mass;
+        
+        Collider playerCollider = GetComponent<Collider>();
+        Physics.IgnoreCollision(cloneCollider, playerCollider, false);
+        
         foreach (GameObject deathObj in GameObject.FindGameObjectsWithTag("death"))
         {
             Collider deathCollider = deathObj.GetComponent<Collider>();
