@@ -24,7 +24,7 @@ public class ObjectAction
     [Tooltip("Duration in seconds")]
     public float duration;
 
-    [SerializeField, ReadOnly]
+    [SerializeField, ReadOnly] 
     public float calculatedDuration;
 }
 
@@ -38,7 +38,7 @@ public class ObjectEntry
 public class Controller : MonoBehaviour
 {
     public List<ObjectEntry> objectEntries = new List<ObjectEntry>();
-    private Dictionary<GameObject, Coroutine> activeCoroutines = new Dictionary<GameObject, Coroutine>();
+    private List<Coroutine> allCoroutines = new List<Coroutine>();
 
     void OnValidate()
     {
@@ -90,17 +90,14 @@ public class Controller : MonoBehaviour
         {
             if (entry.targetObject != null)
             {
-                if (activeCoroutines.ContainsKey(entry.targetObject))
-                {
-                    StopCoroutine(activeCoroutines[entry.targetObject]);
-                }
-                activeCoroutines[entry.targetObject] = StartCoroutine(ProcessEntry(entry));
+                allCoroutines.Add(StartCoroutine(ProcessEntry(entry)));
             }
         }
     }
 
     IEnumerator ProcessEntry(ObjectEntry entry)
     {
+        // Sequential execution within entry
         foreach (var action in entry.actions)
         {
             yield return ExecuteAction(entry.targetObject, action);
@@ -116,20 +113,12 @@ public class Controller : MonoBehaviour
             case ObjectAction.ActionType.Move:
                 if (action.moveTarget != null)
                 {
-                    yield return MoveWithExactSpeed(
-                        obj,
-                        action.moveTarget.transform.position,
-                        duration
-                    );
+                    yield return MoveAction(obj, action);
                 }
                 break;
 
             case ObjectAction.ActionType.Rotate:
-                yield return RotateWithExactSpeed(
-                    obj,
-                    action.rotationDegrees,
-                    duration
-                );
+                yield return RotateAction(obj, action);
                 break;
 
             case ObjectAction.ActionType.Wait:
@@ -138,11 +127,15 @@ public class Controller : MonoBehaviour
         }
     }
 
-    IEnumerator MoveWithExactSpeed(GameObject obj, Vector3 targetPos, float duration)
+    IEnumerator MoveAction(GameObject obj, ObjectAction action)
     {
         Vector3 startPos = obj.transform.position;
-        float elapsed = 0f;
+        Vector3 targetPos = action.moveTarget.transform.position;
+        float duration = action.useSpeed ? 
+            Vector3.Distance(startPos, targetPos) / action.speed : 
+            action.duration;
 
+        float elapsed = 0f;
         while (elapsed < duration)
         {
             obj.transform.position = Vector3.Lerp(
@@ -156,12 +149,19 @@ public class Controller : MonoBehaviour
         obj.transform.position = targetPos;
     }
 
-    IEnumerator RotateWithExactSpeed(GameObject obj, Vector3 rotation, float duration)
+    IEnumerator RotateAction(GameObject obj, ObjectAction action)
     {
         Vector3 startRot = obj.transform.eulerAngles;
-        Vector3 targetRot = startRot + rotation;
-        float elapsed = 0f;
+        Vector3 targetRot = startRot + action.rotationDegrees;
+        float duration = action.useSpeed ? 
+            Mathf.Max(
+                Mathf.Abs(action.rotationDegrees.x),
+                Mathf.Abs(action.rotationDegrees.y),
+                Mathf.Abs(action.rotationDegrees.z)
+            ) / action.speed : 
+            action.duration;
 
+        float elapsed = 0f;
         while (elapsed < duration)
         {
             obj.transform.eulerAngles = new Vector3(
