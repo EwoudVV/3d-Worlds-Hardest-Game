@@ -16,7 +16,7 @@ public class ObjectAction
     [Header("Rotation Settings")]
     public Vector3 rotationDegrees;
 
-    [Header("Timing Configuration")]
+    [Header("Timing Control")]
     [Tooltip("Check to use speed, uncheck to use duration")]
     public bool useSpeed;
     [Tooltip("Units/sec for movement, deg/sec for rotation")]
@@ -25,7 +25,6 @@ public class ObjectAction
     public float duration;
 
     [SerializeField, ReadOnly]
-    [Tooltip("Calculated duration based on speed")]
     public float calculatedDuration;
 }
 
@@ -38,11 +37,12 @@ public class ObjectEntry
 
 public class Controller : MonoBehaviour
 {
-    public List<ObjectEntry> objectsToControl = new List<ObjectEntry>();
+    public List<ObjectEntry> objectEntries = new List<ObjectEntry>();
+    private Dictionary<GameObject, Coroutine> activeCoroutines = new Dictionary<GameObject, Coroutine>();
 
     void OnValidate()
     {
-        foreach (var entry in objectsToControl)
+        foreach (var entry in objectEntries)
         {
             if (entry.targetObject == null) continue;
 
@@ -55,45 +55,46 @@ public class Controller : MonoBehaviour
 
     void UpdateCalculations(GameObject obj, ObjectAction action)
     {
-        if (action.useSpeed)
+        switch (action.type)
         {
-            switch (action.type)
-            {
-                case ObjectAction.ActionType.Move when action.moveTarget != null:
-                    float distance = Vector3.Distance(
-                        obj.transform.position,
-                        action.moveTarget.transform.position
-                    );
-                    action.calculatedDuration = distance / action.speed;
-                    break;
+            case ObjectAction.ActionType.Move when action.moveTarget != null:
+                float distance = Vector3.Distance(
+                    obj.transform.position,
+                    action.moveTarget.transform.position
+                );
+                action.calculatedDuration = action.useSpeed ? 
+                    distance / action.speed : 
+                    action.duration;
+                break;
 
-                case ObjectAction.ActionType.Rotate:
-                    float maxRotation = Mathf.Max(
-                        Mathf.Abs(action.rotationDegrees.x),
-                        Mathf.Abs(action.rotationDegrees.y),
-                        Mathf.Abs(action.rotationDegrees.z)
-                    );
-                    action.calculatedDuration = maxRotation / action.speed;
-                    break;
+            case ObjectAction.ActionType.Rotate:
+                float maxRotation = Mathf.Max(
+                    Mathf.Abs(action.rotationDegrees.x),
+                    Mathf.Abs(action.rotationDegrees.y),
+                    Mathf.Abs(action.rotationDegrees.z)
+                );
+                action.calculatedDuration = action.useSpeed ? 
+                    maxRotation / action.speed : 
+                    action.duration;
+                break;
 
-                default:
-                    action.calculatedDuration = action.duration;
-                    break;
-            }
-        }
-        else
-        {
-            action.calculatedDuration = action.duration;
+            case ObjectAction.ActionType.Wait:
+                action.calculatedDuration = action.duration;
+                break;
         }
     }
 
     void Start()
     {
-        foreach (var entry in objectsToControl)
+        foreach (var entry in objectEntries)
         {
             if (entry.targetObject != null)
             {
-                StartCoroutine(ProcessEntry(entry));
+                if (activeCoroutines.ContainsKey(entry.targetObject))
+                {
+                    StopCoroutine(activeCoroutines[entry.targetObject]);
+                }
+                activeCoroutines[entry.targetObject] = StartCoroutine(ProcessEntry(entry));
             }
         }
     }
@@ -108,16 +109,14 @@ public class Controller : MonoBehaviour
 
     IEnumerator ExecuteAction(GameObject obj, ObjectAction action)
     {
-        float duration = action.useSpeed ? 
-            action.calculatedDuration : 
-            action.duration;
+        float duration = action.useSpeed ? action.calculatedDuration : action.duration;
 
         switch (action.type)
         {
             case ObjectAction.ActionType.Move:
                 if (action.moveTarget != null)
                 {
-                    yield return MoveToTarget(
+                    yield return MoveWithExactSpeed(
                         obj,
                         action.moveTarget.transform.position,
                         duration
@@ -126,7 +125,7 @@ public class Controller : MonoBehaviour
                 break;
 
             case ObjectAction.ActionType.Rotate:
-                yield return RotateObject(
+                yield return RotateWithExactSpeed(
                     obj,
                     action.rotationDegrees,
                     duration
@@ -139,7 +138,7 @@ public class Controller : MonoBehaviour
         }
     }
 
-    IEnumerator MoveToTarget(GameObject obj, Vector3 targetPos, float duration)
+    IEnumerator MoveWithExactSpeed(GameObject obj, Vector3 targetPos, float duration)
     {
         Vector3 startPos = obj.transform.position;
         float elapsed = 0f;
@@ -157,7 +156,7 @@ public class Controller : MonoBehaviour
         obj.transform.position = targetPos;
     }
 
-    IEnumerator RotateObject(GameObject obj, Vector3 rotation, float duration)
+    IEnumerator RotateWithExactSpeed(GameObject obj, Vector3 rotation, float duration)
     {
         Vector3 startRot = obj.transform.eulerAngles;
         Vector3 targetRot = startRot + rotation;
