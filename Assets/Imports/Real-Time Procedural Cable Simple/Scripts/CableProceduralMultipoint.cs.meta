@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 577621f9861efe641a553b103c161439
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 102196
+  packageName: Real-Time Procedural Cable Simple
+  packageVersion: 1.1
+  assetPath: Assets/Real-Time Procedural Cable Simple/Scripts/CableProceduralMultipoint.cs
+  uploadId: 350676

@@ -1,29 +1,16 @@
 using UnityEngine;
-
-public class SmoothFollower : MonoBehaviour
-{
+public class SmoothFollower : MonoBehaviour {
     public Transform target;
     public float positionSmoothTime = 0.5f;
     public float rotationSmoothTime = 0.7f;
-    
     private Vector3 positionVelocity;
     private Quaternion rotationVelocity;
-    
-    void Update()
-    {
+    void Update() {
         if (target == null) return;
-        
-        transform.position = Vector3.SmoothDamp(transform.position, target.position, 
-            ref positionVelocity, positionSmoothTime);
-        
-        transform.rotation = SmoothDampQuaternion(transform.rotation, target.rotation, 
-            ref rotationVelocity, rotationSmoothTime);
+        transform.position = Vector3.SmoothDamp(transform.position, target.position, ref positionVelocity, positionSmoothTime);
+        transform.rotation = SmoothDampQuaternion(transform.rotation, target.rotation, ref rotationVelocity, rotationSmoothTime);
     }
-    
-    private Quaternion SmoothDampQuaternion(Quaternion current, Quaternion target, 
-        ref Quaternion velocity, float smoothTime)
-    {
-        // Keep original implementation unchanged
+    private Quaternion SmoothDampQuaternion(Quaternion current, Quaternion target, ref Quaternion velocity, float smoothTime) {
         if (Time.deltaTime < Mathf.Epsilon)
             return current;
         float dot = Quaternion.Dot(current, target);

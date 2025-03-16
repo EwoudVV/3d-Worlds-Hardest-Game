@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 458bcc6b464a53e41b0bbc765a292625
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 102196
+  packageName: Real-Time Procedural Cable Simple
+  packageVersion: 1.1
+  assetPath: Assets/Real-Time Procedural Cable Simple/Scripts/CableProceduralCurve.cs
+  uploadId: 350676
