@@ -2,29 +2,21 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-
 public class EnemyMovement : MonoBehaviour
 {
     public enum MovementType { Linear, Rotational }
     public MovementType movementType;
-
     public enum DirectionLock { None, X, Y, Z }
     public DirectionLock lockAxis;
-
-    [Header("Linear Movement")]
     public List<Transform> waypoints;
     public float moveSpeed = 5f;
     private int currentWaypointIndex = 0;
     private bool reverse = false;
-
-    [Header("Rotational Movement")]
     public Transform rotationCenter;
     public float rotationRadius = 3f;
     public float rotationSpeed = 5f;
     private float angle;
-
     private Rigidbody rb;
-
     void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -34,13 +26,11 @@ public class EnemyMovement : MonoBehaviour
             rb.interpolation = RigidbodyInterpolation.Interpolate;
             rb.isKinematic = true;
         }
-
         if (movementType == MovementType.Linear && waypoints.Count > 0)
         {
             transform.position = waypoints[0].position;
         }
     }
-
     void FixedUpdate()
     {
         if (movementType == MovementType.Linear)
@@ -52,21 +42,15 @@ public class EnemyMovement : MonoBehaviour
             RotateAround();
         }
     }
-
     void MoveLinear()
     {
         if (waypoints.Count < 2) return;
-        
         Transform targetWaypoint = waypoints[currentWaypointIndex];
         Vector3 moveDirection = (targetWaypoint.position - transform.position).normalized;
-
-        // Lock the selected axis
         if (lockAxis == DirectionLock.X) moveDirection.x = 0;
         if (lockAxis == DirectionLock.Y) moveDirection.y = 0;
         if (lockAxis == DirectionLock.Z) moveDirection.z = 0;
-
         transform.position = Vector3.MoveTowards(transform.position, targetWaypoint.position, moveSpeed * Time.fixedDeltaTime);
-
         if (Vector3.Distance(transform.position, targetWaypoint.position) < 0.01f)
         {
             if (!reverse)
@@ -89,23 +73,19 @@ public class EnemyMovement : MonoBehaviour
             }
         }
     }
-
     void RotateAround()
     {
         if (rotationCenter == null) return;
-        
         angle += rotationSpeed * Time.fixedDeltaTime;
         float x = rotationCenter.position.x + Mathf.Cos(angle) * rotationRadius;
         float z = rotationCenter.position.z + Mathf.Sin(angle) * rotationRadius;
         transform.position = new Vector3(x, transform.position.y, z);
     }
-
-//comment this stuff so that the enemy doesn't kill the player, the player movement script handles player teleportation to the start
-//    private void OnTriggerEnter(Collider other)
-//    {
-//        if (other.CompareTag("Player"))
-//        {
-//            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-//        }
-//    }
+    public void OnCollisionEnter(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Player") || collision.gameObject.CompareTag("bablockno") || collision.gameObject.CompareTag("death"))
+        {
+            collision.gameObject.GetComponent<PlayerMovement>()?.TeleportToRespawn();
+        }
+    }
 }
