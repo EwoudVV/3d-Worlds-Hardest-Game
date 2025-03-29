@@ -38,6 +38,7 @@ public class LevelTimer : MonoBehaviour
             else
             {
                 sessionTotalTime = 0f;
+                File.WriteAllText(sessionTotalFile, sessionTotalTime.ToString());
             }
         }
     }
