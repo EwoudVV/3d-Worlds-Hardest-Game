@@ -19,7 +19,6 @@ public class LevelTimesPanel : MonoBehaviour
         levelTimesFile = Application.persistentDataPath + "/LevelTimes.txt";
         sessionTotalFile = Application.persistentDataPath + "/SessionTotal.txt";
 
-        // Set the primary sprite asset to goldMedalAsset.
         if (listText != null && goldMedalAsset != null)
         {
             listText.spriteAsset = goldMedalAsset;
@@ -59,7 +58,7 @@ public class LevelTimesPanel : MonoBehaviour
         }
         else
         {
-            output = "No level times recorded.\n";
+            output = "-----\n";
         }
         float total = 0f;
         if (File.Exists(sessionTotalFile))
@@ -70,7 +69,7 @@ public class LevelTimesPanel : MonoBehaviour
         int ts = (int)(total % 60);
         int tms = (int)((total * 1000) % 1000);
         string formattedTotal = string.Format("{0:00}:{1:00}:{2:000}", tm, ts, tms);
-        output += "\nTotal Time: " + formattedTotal;
+        output += "\n+: " + formattedTotal;
         listText.text = output;
     }
 }
